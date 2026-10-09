@@ -1,0 +1,798 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#191a1e">
+  <title>Расписание занятий</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #191a1e;
+      --panel: #222327;
+      --border: #393a41;
+      --text: #f0f0f2;
+      --muted: #a1a1aa;
+      --green: #009f80;
+      --green-light: #65d0b9;
+      --orange: #c18b5e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px 10px 40px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 12px 0;
+      text-align: center;
+      font-size: clamp(32px, 7vw, 48px);
+      color: var(--green-light);
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .group {
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 auto 24px;
+      padding: 12px 18px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--panel);
+      font-weight: bold;
+    }
+
+    .controls {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 15px;
+      background: var(--panel);
+      margin-bottom: 20px;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px;
+      padding: 5px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      margin-bottom: 14px;
+    }
+
+    .segmented button,
+    .days button,
+    .edit-button {
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: 12px;
+      padding: 14px 6px;
+      font-weight: bold;
+    }
+
+    .segmented button.active,
+    .days button.active,
+    .primary {
+      background: var(--green);
+      border-color: var(--green);
+      color: white;
+    }
+
+    .today-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .today-row button {
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      padding: 16px 6px;
+      background: transparent;
+      font-weight: bold;
+    }
+
+    .today-row button.active {
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .days {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .days button {
+      color: var(--muted);
+      min-width: 0;
+    }
+
+    .days button.active {
+      color: white;
+    }
+
+    .date-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+      color: var(--muted);
+    }
+
+    input[type="date"] {
+      min-width: 0;
+      max-width: 100%;
+      padding: 13px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    .edit-button {
+      color: var(--green-light);
+      margin-bottom: 20px;
+    }
+
+    .lesson {
+      display: grid;
+      grid-template-columns: 68px minmax(0, 1fr);
+      gap: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 18px 15px;
+      margin-bottom: 12px;
+    }
+
+    .time {
+      border-right: 1px solid #55565c;
+      padding-right: 10px;
+      line-height: 1.7;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .time strong {
+      display: block;
+      color: var(--text);
+      font-size: 17px;
+    }
+
+    .lesson-title {
+      font-size: 17px;
+      font-weight: bold;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 10px;
+      color: var(--orange);
+      background: #2a2522;
+      padding: 6px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .details {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-top: 10px;
+    }
+
+    .info-card {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      border-radius: 16px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .info-card h2 {
+      font-size: 18px;
+      margin: 0 0 15px;
+    }
+
+    .pill {
+      display: inline-block;
+      color: var(--green-light);
+      background: #20332f;
+      border: 1px solid #176d5d;
+      border-radius: 10px;
+      padding: 7px 10px;
+      margin-bottom: 12px;
+    }
+
+    .empty {
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+    }
+
+    .chat {
+      position: fixed;
+      right: 16px;
+      bottom: 18px;
+      width: 64px;
+      height: 64px;
+      border: none;
+      border-radius: 18px;
+      background: var(--green);
+      font-size: 27px;
+      box-shadow: 0 4px 20px #0005;
+    }
+
+    .editor {
+      display: none;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+    }
+
+    .editor.show { display: block; }
+
+    .editor label {
+      display: block;
+      margin: 12px 0 6px;
+      color: var(--muted);
+    }
+
+    .editor input,
+    .editor select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .editor button {
+      border: 1px solid var(--border);
+      background: var(--green);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    @media (max-width: 430px) {
+      .controls { padding: 10px; }
+      .days { gap: 4px; }
+      .days button { padding: 12px 2px; font-size: 12px; }
+      .lesson { grid-template-columns: 62px minmax(0, 1fr); padding: 15px 10px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Расписание</h1>
+  <div class="group">♧ Группа АД-9-26 &nbsp; | &nbsp; АФ</div>
+
+  <section class="controls">
+    <div class="segmented">
+      <button data-week="1">1 неделя</button>
+      <button data-week="2" class="active">2 неделя</button>
+    </div>
+
+    <div class="today-row">
+      <button id="today">▦ Сегодня</button>
+      <button id="tomorrow">◷ Завтра</button>
+    </div>
+
+    <div class="days" id="days">
+      <button data-day="1">Пн</button>
+      <button data-day="2">Вт</button>
+      <button data-day="3">Ср</button>
+      <button data-day="4">Чт</button>
+      <button data-day="5">Пт</button>
+      <button data-day="6">Сб</button>
+    </div>
+  </section>
+
+  <div class="date-row">
+    <label for="date">Расписание на дату</label>
+    <input id="date" type="date">
+  </div>
+
+  <button id="editToggle" class="edit-button">✎ Редактировать для себя</button>
+
+  <section id="editor" class="editor">
+    <h2>Добавить занятие для себя</h2>
+
+    <label for="subject">Предмет</label>
+    <input id="subject" placeholder="Например, Математика">
+
+    <label for="start">Начало</label>
+    <input id="start" type="time" value="08:00">
+
+    <label for="end">Окончание</label>
+    <input id="end" type="time" value="09:35">
+
+    <label for="room">Корпус и аудитория</label>
+    <input id="room" placeholder="Корпус 1, ауд. 101">
+
+    <label for="teacher">Преподаватель</label>
+    <input id="teacher" placeholder="Фамилия И.О.">
+
+    <label for="kind">Тип занятия</label>
+    <select id="kind">
+      <option>Лекция</option>
+      <option>Практика</option>
+      <option>Лабораторная</option>
+      <option>Занятие</option>
+    </select>
+
+    <button id="addLesson">Добавить занятие</button>
+    <button id="resetLessons" type="button">Сбросить мои изменения</button>
+  </section>
+
+  <section id="schedule"></section>
+  <section id="next"></section>
+  <section id="gap"></section>
+</main>
+
+<button class="chat" id="chat" aria-label="Открыть чат">♧</button>
+
+<script>
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+  }
+
+  const dayNames = ["", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+  const dateInput = document.getElementById("date");
+
+  const sampleLessons = [
+    { day: 1, week: 2,
+      start: "09:00",
+        end: "10:25",
+    subject: "политология",
+       room: "2/409",
+    teacher: "Данилов Ю.Д. " },
+     { day: 1, week: 0,
+      start: "10:35",
+        end: "12:00",
+    subject: "основы права",
+       room: "301",
+    teacher: "Семак Е.Д." },
+    { day: 1, week: 0,
+      start: "12:10",
+        end: "13:35",
+    subject: "введение в архитектурное проектирование",
+       room: "2а/4",
+    teacher: "Кивачук С.ВПолушкина С.А. Говин Е.Г." },
+    { day: 1, week: 0,
+      start: "14:05",
+        end: "15:30",
+    subject: "введение в архитектурное проектирование",
+       room: "2а/4",
+    teacher: "Кивачук С.ВПолушкина С.А. Говин Е.Г." },
+    
+
+    { day: 2, week: 2,
+      start: "09:00",
+        end: "10:25",
+    subject: "арх. конструкции",
+       room: "507",
+    teacher: "Глушко К.К" },
+    { day: 2, week: 0,
+      start: "10:35",
+        end: "12:00",
+    subject: "арх. конструкции",
+       room: "507",
+    teacher: "Глушко К.К" },
+    { day: 2, week: 2,
+      start: "14:05",
+        end: "15:30",
+    subject: "основы геодезии",
+       room: "209",
+    teacher: "Крючкова Л.С" },
+
+{ day: 3, week: 0,
+      start: "09:00",
+        end: "10:25",
+    subject: "немец",
+       room: "512а",
+    teacher: "Федорович Н.Н." },
+{ day: 3, week: 1,
+      start: "10:35",
+        end: "12:00",
+    subject: "начертательная геометрия",
+       room: "329",
+    teacher: "Винник Н.С" },
+    { day: 3, week: 2,
+      start: "10:35",
+        end: "12:00",
+    subject: "основы геодезии",
+       room: "329",
+    teacher: "Зуева Л.Ф" },
+      { day: 3, week: 0,
+      start: "12:10",
+        end: "13:35",
+      subject: "Немец",
+       room: "512а",
+      teacher: "Федорович Н.Н." },
+    { day: 3, week: 1,
+      start: "14:05",
+        end: "15:30",
+    subject: "физическая культура", },
+
+    { day: 4, week: 1, start: "09:00", end: "10:25",
+      subject: "политология",
+       room: "507",
+      teacher: "ст.преп. Данилов Ю.Д" },
+      { day: 4, week: 2, start: "09:00", end: "10:25",
+      subject: "введение в архитектурное образование",
+       room: "507",
+      teacher: "Кивачук С.В" },
+      { day: 4, week: 0, start: "10:35", end: "12:00",
+      subject: "арх. материаловедение",
+       room: "111",
+      teacher: "ст.преп. Протасевич А.А" },
+      { day: 4, week: 0, start: "12:10", end: "13:35",
+      subject: "начертательная геометрия",
+      room: "335",
+      teacher: "Винник Н.С" },
+      { day: 4, week: 1, start: "14:05", end: "15:30",
+      subject: "коррупция и ее общественная опасность",
+       room: "401",
+      teacher: "ст.преп. Кудрицкая Е.Г" },
+      { day: 4, week: 2, start: "14:05", end: "15:30",
+      subject: "история бел. государственности",
+       room: "131",
+      teacher: "Грибова С.В" },
+
+    { day: 5, week: 1, start: "09:00", end: "10:25",
+      subject: "архитектурная колористика и ЦД",
+       room: "507",
+      teacher: "доц. Диченская Е.А." },
+      { day: 5, week: 0, start: "10:35", end: "12:00",
+      subject: "рисунок",
+       room: "207",
+      teacher: "Макарук В.Л Смитиенко И.В." },
+      { day: 5, week: 0, start: "12:10", end: "13:35",
+      subject: "архитектурная графика",
+       room: "2а/3 ",
+      teacher: "доц. Диченская Е.А Кузнецова М.Г" },
+      { day: 5, week: 1, start: "14:05", end: "15:30",
+      subject: "архитектурная графика",
+       room: "2а/3",
+      teacher: "Диченская Е.А., Кузнецова М" },
+      { day: 5, week: 2, start: "14:05", end: "15:30",
+      subject: "архитектурная колористика и ЦД",
+       room: "2а/3",
+      teacher: "Диченская Е.А., Кузнецова М" },
+      { day: 5, week: 0, start: "15:40", end: "17:05",
+      subject: "кураторский час",
+       room: "2а/3 ",
+      teacher: "Воробей А.В." },
+      
+      { day: 6, week: 0,
+      start: "09:00",
+        end: "10:25",
+      subject: "Немец",
+       room: "512а",
+      teacher: "Федорович Н.Н." },
+      { day: 6, week: 0, start: "10:35", end: "12:00",
+      subject: "История белорусской государственности",
+      room: "329",
+      teacher: "доц. Грибова С.В." },
+      { day: 6, week: 0, start: "12:10", end: "13:35",
+      subject: "история исскуств",
+       room: "443 ",
+      teacher: "доц. Диченская Е.А" },
+      
+      { day: 6, week: 0, start: "14:05", end: "15:30",
+      subject: "физическая культура",
+      teacher: "" },
+    ];
+
+  const storageKey = "my-timetable-custom-v1";
+
+  function loadCustom() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  let customLessons = loadCustom();
+  let selectedDate = new Date();
+  selectedDate.setHours(12, 0, 0, 0);
+
+  function dateKey(date) {
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
+  }
+
+  function parseDate(value) {
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(y, m - 1, d, 12);
+  }
+
+  function mondayOf(date) {
+    const result = new Date(date);
+    const weekday = result.getDay() || 7;
+    result.setDate(result.getDate() - weekday + 1);
+    result.setHours(12, 0, 0, 0);
+    return result;
+  }
+
+  function weekNumber(date) {
+  const monday = mondayOf(date);
+  const anchor = new Date(2026, 8, 7, 12);
+  const weeks = Math.floor((monday - anchor) / 604800000);
+  return ((weeks % 2) + 2) % 2 === 0 ? 2 : 1;
+}
+
+  function dayNumber(date) {
+    const day = date.getDay();
+    return day === 0 ? 7 : day;
+  }
+
+  function displayDate(date) {
+    return date.toLocaleDateString("ru-RU", {
+      day: "2-digit", month: "2-digit"
+    });
+  }
+
+  function allLessons() {
+    return sampleLessons.concat(customLessons);
+  }
+
+  function getLessons(date) {
+  const day = dayNumber(date);
+  const week = weekNumber(date);
+  const key = dateKey(date);
+
+  return allLessons()
+    .filter(item =>
+      item.date
+        ? item.date === key
+        : item.day === day &&
+          (item.week === 0 || item.week === week)
+    )
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+  function escapeHtml(value = "") {
+    return String(value).replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;",
+      '"': "&quot;", "'": "&#39;"
+    })[ch]);
+  }
+
+  function render() {
+    dateInput.value = dateKey(selectedDate);
+
+    const week = weekNumber(selectedDate);
+    document.querySelectorAll("[data-week]").forEach(button => {
+  const buttonWeek = Number(button.dataset.week);
+
+  button.classList.toggle(
+    "active",
+    buttonWeek === week
+  );
+});
+
+    document.querySelectorAll("[data-day]").forEach(button => {
+      button.classList.toggle("active",
+        Number(button.dataset.day) === dayNumber(selectedDate));
+    });
+
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    document.getElementById("today").classList.toggle(
+      "active", dateKey(selectedDate) === dateKey(today));
+    document.getElementById("tomorrow").classList.toggle(
+      "active", dateKey(selectedDate) === dateKey(tomorrow));
+
+    const lessons = getLessons(selectedDate);
+    const schedule = document.getElementById("schedule");
+
+    if (!lessons.length) {
+      schedule.innerHTML = '<div class="empty">На этот день занятий нет или расписание ещё не добавлено.</div>';
+    } else {
+      schedule.innerHTML = lessons.map(lesson => `
+        <article class="lesson">
+          <div class="time">
+            <strong>${escapeHtml(lesson.start)}</strong>
+            ${escapeHtml(lesson.end)}
+          </div>
+          <div>
+            <div class="lesson-title">${escapeHtml(lesson.subject)}</div>
+            <span class="badge">${escapeHtml(lesson.kind)}</span>
+            <div class="details">
+              ${lesson.room ? "⌖ " + escapeHtml(lesson.room) : ""}
+              ${lesson.teacher ? "<br>" + escapeHtml(lesson.teacher) : ""}
+            </div>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    renderNext(lessons);
+    renderGaps(lessons);
+  }
+
+  function renderNext(lessons) {
+    const now = new Date();
+    const isToday = dateKey(selectedDate) === dateKey(now);
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const next = lessons.find(item => {
+      const [h, m] = item.start.split(":").map(Number);
+      return !isToday || h * 60 + m > nowMinutes;
+    });
+
+    const panel = document.getElementById("next");
+
+    if (!next) {
+      panel.innerHTML = `
+        <div class="info-card">
+          <h2>◷ Следующее занятие</h2>
+          На выбранную дату больше занятий нет.
+        </div>`;
+      return;
+    }
+
+    panel.innerHTML = `
+      <div class="info-card">
+        <h2>◷ Следующее занятие</h2>
+        <span class="pill">${displayDate(selectedDate)} (${dayNames[dayNumber(selectedDate)]}) · ${escapeHtml(next.start)}</span>
+        <div class="lesson-title">${escapeHtml(next.subject)}</div>
+        <div class="details">${escapeHtml(next.room || "Аудитория не указана")}<br>${escapeHtml(next.teacher || "")}</div>
+      </div>`;
+  }
+
+  function renderGaps(lessons) {
+    const panel = document.getElementById("gap");
+
+    const gaps = [];
+    for (let i = 1; i < lessons.length; i++) {
+      const [h1, m1] = lessons[i - 1].end.split(":").map(Number);
+      const [h2, m2] = lessons[i].start.split(":").map(Number);
+      const minutes = h2 * 60 + m2 - (h1 * 60 + m1);
+      if (minutes > 0) gaps.push(minutes);
+    }
+
+    panel.innerHTML = `
+      <div class="info-card">
+        <h2>☕ Окно между парами</h2>
+        <div class="details">${
+          gaps.length
+            ? "Перерывы: " + gaps.map(n => `${Math.floor(n / 60)} ч ${n % 60} мин`).join(", ")
+            : "Сегодня больших окон не ожидается."
+        }</div>
+      </div>`;
+  }
+
+  document.querySelectorAll("[data-week]").forEach(button => {
+    button.addEventListener("click", () => {
+      const targetWeek = Number(button.dataset.week);
+      const monday = mondayOf(selectedDate);
+      monday.setDate(monday.getDate() + 7 * ((targetWeek - weekNumber(selectedDate) + 2) % 2));
+      monday.setDate(monday.getDate() + dayNumber(selectedDate) - 1);
+      selectedDate = monday;
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-day]").forEach(button => {
+    button.addEventListener("click", () => {
+      const monday = mondayOf(selectedDate);
+      monday.setDate(monday.getDate() + Number(button.dataset.day) - 1);
+      selectedDate = monday;
+      render();
+    });
+  });
+
+  document.getElementById("today").addEventListener("click", () => {
+    selectedDate = new Date();
+    selectedDate.setHours(12, 0, 0, 0);
+    render();
+  });
+
+  document.getElementById("tomorrow").addEventListener("click", () => {
+    selectedDate = new Date();
+    selectedDate.setDate(selectedDate.getDate() + 1);
+    selectedDate.setHours(12, 0, 0, 0);
+    render();
+  });
+
+  dateInput.addEventListener("change", () => {
+    if (dateInput.value) {
+      selectedDate = parseDate(dateInput.value);
+      render();
+    }
+  });
+
+  document.getElementById("editToggle").addEventListener("click", () => {
+    document.getElementById("editor").classList.toggle("show");
+  });
+
+  document.getElementById("addLesson").addEventListener("click", () => {
+    const subject = document.getElementById("subject").value.trim();
+    const start = document.getElementById("start").value;
+    const end = document.getElementById("end").value;
+
+    if (!subject || !start || !end || end <= start) {
+      alert("Укажи предмет и корректное время занятия.");
+      return;
+    }
+
+    customLessons.push({
+      date: dateKey(selectedDate),
+      start,
+      end,
+      subject,
+      room: document.getElementById("room").value.trim(),
+      teacher: document.getElementById("teacher").value.trim(),
+      kind: document.getElementById("kind").value
+    });
+
+    localStorage.setItem(storageKey, JSON.stringify(customLessons));
+    document.getElementById("subject").value = "";
+    render();
+  });
+
+  document.getElementById("resetLessons").addEventListener("click", () => {
+    if (confirm("Удалить все добавленные тобой занятия?")) {
+      customLessons = [];
+      localStorage.removeItem(storageKey);
+      render();
+    }
+  });
+
+  document.getElementById("chat").addEventListener("click", () => {
+    if (tg) {
+      tg.showAlert("Здесь можно подключить чат или обратную связь.");
+    } else {
+      alert("Здесь можно подключить чат или обратную связь.");
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
